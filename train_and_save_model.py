@@ -12,6 +12,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, precision_score
 from google.cloud import storage
 import joblib
+import os
 from datetime import datetime
 
 
@@ -49,6 +50,10 @@ def save_model_to_gcs(model, bucket_name, blob_name):
     blob.upload_from_filename('model.joblib')
 
 
+def get_bucket_name():
+    return os.getenv("GCS_BUCKET_NAME", "ie7374-lab3-kevin")
+
+
 def main():
     X, y = download_data()
     X_train, X_test, y_train, y_test = preprocess_data(X, y)
@@ -63,8 +68,7 @@ def main():
     print(f"Accuracy:  {accuracy:.4f}")
     print(f"Precision: {precision:.4f}")
 
-    # Change bucket_name into bucket Kevin which created at step 6
-    bucket_name = "ie7374-lab3-kevin"
+    bucket_name = get_bucket_name()
     timestamp   = datetime.now().strftime("%Y%m%d%H%M%S")
     blob_name   = f"trained_models/model_{timestamp}.joblib"
 
