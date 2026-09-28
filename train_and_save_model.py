@@ -64,7 +64,7 @@ def main():
     print(f"Precision: {precision:.4f}")
 
     # Change bucket_name into bucket Kevin which created at step 6
-    bucket_name = "ie7374-github-lab3-kevin"
+    bucket_name = "ie7374-lab3-kevin"
     timestamp   = datetime.now().strftime("%Y%m%d%H%M%S")
     blob_name   = f"trained_models/model_{timestamp}.joblib"
 
