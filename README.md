@@ -27,25 +27,62 @@ model was changed to GradientBoostingClassifier with n_estimators=100 and
 learning_rate=0.1. Evaluation was extended from accuracy alone to accuracy and
 weighted precision, both computed on a proper 80/20 train/test split.
 
-Beyond the model itself, the script now generates a companion metadata JSON
-file for every run. The metadata captures the timestamp, dataset name, model
-class, hyperparameters, class names, sample counts, and the computed metrics,
-together with the GCS path where the model was stored. This metadata file is
-uploaded to GCS alongside the model so that every artifact in the bucket is
-self-describing and traceable.
-
-After both uploads, the script runs a verification pass that calls the GCS API
-to confirm each blob exists and reports its file size. If either file is
-missing, the script raises a RuntimeError and the pipeline fails immediately.
-This closes a gap in the original lab where the upload could silently fail
-without any signal.
-
 **Pipeline (train-and-upload.yml)**
 
 The single training step was renamed to reflect its expanded scope: train,
 evaluate, and upload artifacts to GCS. Pip dependency caching was kept to
 speed up repeated runs. The authentication step uses google-github-actions/auth
 at v2, which is the current stable version of that action.
+
+## Advanced Extension — Companion Metadata Upload and Post-Upload Verification
+
+**Why this was chosen**
+
+The original lab uploaded a model file to GCS and stopped. This creates two
+problems that compound over time. First, a bucket full of anonymous joblib files
+is unmanageable: there is no way to know which run produced which file, what
+dataset it was trained on, what metrics it achieved, or where its GCS path is
+without digging through pipeline logs. Second, there was no confirmation that
+the upload actually succeeded. GCS upload calls can fail silently due to network
+timeouts or permission issues, and without an explicit check the pipeline would
+report success while the bucket remained unchanged.
+
+Both problems are standard concerns in production MLOps systems. Artifact
+lineage, the ability to trace a deployed model back to the exact run, data, and
+parameters that produced it, is a core requirement for reproducibility and
+auditability. Post-upload verification is a basic reliability practice: no
+responsible system promotes an artifact to a registry without confirming it
+arrived intact. These two additions together bring the lab's GCS integration
+closer to what a real ML platform would require.
+
+**How it works**
+
+After evaluation, the script constructs a metadata dictionary that captures
+everything needed to understand the artifact: the run timestamp, the dataset
+name and class names, the model class and its hyperparameters, the number of
+training and test samples, the computed accuracy and precision scores, and the
+full GCS path where the model will be stored. This dictionary is written to a
+local JSON file named model_TIMESTAMP_metadata.json, then uploaded to GCS
+immediately after the model file, using the same trained_models/ prefix and
+the same timestamp so the two files are always co-located and trivially paired.
+
+After both uploads complete, the script calls the GCS API a second time to
+reload each blob's metadata. If a blob does not exist at the expected path,
+the reload raises an exception and the script raises a RuntimeError with a
+message naming the missing file. If both blobs exist, their sizes in kilobytes
+are printed to the console as confirmation. The pipeline only reaches the final
+success message if both files passed verification, so any failure in the upload
+or authentication chain surfaces as a clear, named error rather than a silent
+no-op.
+
+**What it produces**
+
+Every run leaves two paired files in the GCS bucket: a joblib model and a JSON
+metadata file sharing the same timestamp prefix. Anyone opening the bucket can
+read the metadata file directly in the GCP Console browser and immediately know
+the model's provenance without checking any external log. The verification step
+also means that a green pipeline run is a genuine guarantee of artifact
+availability, not just evidence that the upload function was called.
 
 ## Prerequisites
 
