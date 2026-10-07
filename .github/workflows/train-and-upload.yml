@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"     # Use 3.10 theo README, avoid package error
+          python-version: "3.10"
 
       - name: Get cache dir
         id: pip-cache-dir
@@ -40,5 +40,5 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      - name: Train and save model to GCS
+      - name: Train, evaluate, and upload artifacts to GCS
         run: python train_and_save_model.py
